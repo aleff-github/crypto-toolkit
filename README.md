@@ -11,7 +11,15 @@
 - Cursor-friendly generators for UUID, random Hex/Base64, and current Unix timestamp.
 - Smart Detect side panel for common encoded values and tokens.
 
+![](https://raw.githubusercontent.com/aleff-github/Deposito/refs/heads/hello/CryptoToolkit/1.png)
 
+---
+
+![](https://raw.githubusercontent.com/aleff-github/Deposito/refs/heads/hello/CryptoToolkit/2.png)
+
+---
+
+![](https://raw.githubusercontent.com/aleff-github/Deposito/refs/heads/hello/CryptoToolkit/3.png)
 
 ## Quick usage
 
