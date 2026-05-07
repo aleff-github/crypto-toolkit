@@ -1,0 +1,541 @@
+{
+  "name": "crypto-toolkit",
+  "displayName": "Crypto Toolkit",
+  "description": "Offline cryptography, encoding, hashing, JWT, AES, HMAC and developer utility toolkit for VS Code.",
+  "version": "1.0.0",
+  "publisher": "aleff",
+  "license": "GPL-3.0-or-later",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other",
+    "Formatters"
+  ],
+  "keywords": [
+    "crypto",
+    "cryptography",
+    "base64",
+    "hash",
+    "jwt",
+    "aes",
+    "offline",
+    "smart-detect",
+    "encoding",
+    "vscode",
+    "uuid",
+    "random",
+    "local"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Crypto Toolkit",
+      "properties": {
+        "cryptoToolkit.outputMode": {
+          "type": "string",
+          "default": "replace",
+          "enum": [
+            "replace",
+            "insert",
+            "sidePanel",
+            "clipboard"
+          ],
+          "enumDescriptions": [
+            "Replace the current selection with the operation result.",
+            "Insert the operation result below the current selection.",
+            "Open the operation result in a readonly side panel.",
+            "Copy the operation result to the clipboard."
+          ],
+          "description": "Controls where operation results are written."
+        },
+        "cryptoToolkit.preferredEncoding": {
+          "type": "string",
+          "default": "utf8",
+          "enum": [
+            "utf8",
+            "hex",
+            "base64"
+          ],
+          "description": "Default encoding used when prompts need to decode keys, secrets, IVs, or binary values."
+        },
+        "cryptoToolkit.showNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show concise success/warning notifications after operations."
+        },
+        "cryptoToolkit.autoCopyResults": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also copy successful operation results to the clipboard, regardless of output mode."
+        },
+        "cryptoToolkit.randomTokenBytes": {
+          "type": "number",
+          "default": 32,
+          "minimum": 8,
+          "maximum": 4096,
+          "description": "Default byte length for random token generation."
+        },
+        "cryptoToolkit.smartDecode.minimumConfidence": {
+          "type": "number",
+          "default": 45,
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Minimum confidence required for Smart Decode candidates. Increase it to reduce false positives."
+        },
+        "cryptoToolkit.smartDecode.maxCandidates": {
+          "type": "number",
+          "default": 8,
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Maximum number of Smart Decode candidates shown in QuickPick or reports."
+        },
+        "cryptoToolkit.smartDecode.showLowConfidence": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show low-confidence Smart Decode candidates. Useful while debugging detectors, but noisier."
+        },
+        "cryptoToolkit.smartDecode.includeReasons": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include scoring reasons in Smart Decode reports and candidate outputs."
+        }
+      }
+    },
+    "submenus": [
+      {
+        "id": "cryptoToolkit.menu.root",
+        "label": "Crypto"
+      },
+      {
+        "id": "cryptoToolkit.menu.smart",
+        "label": "Smart"
+      },
+      {
+        "id": "cryptoToolkit.menu.encode",
+        "label": "Encode"
+      },
+      {
+        "id": "cryptoToolkit.menu.decode",
+        "label": "Decode"
+      },
+      {
+        "id": "cryptoToolkit.menu.hash",
+        "label": "Hash"
+      },
+      {
+        "id": "cryptoToolkit.menu.hmac",
+        "label": "HMAC"
+      },
+      {
+        "id": "cryptoToolkit.menu.jwt",
+        "label": "JWT"
+      },
+      {
+        "id": "cryptoToolkit.menu.aes",
+        "label": "AES"
+      },
+      {
+        "id": "cryptoToolkit.menu.utility",
+        "label": "Utility"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "submenu": "cryptoToolkit.menu.root",
+          "group": "navigation@10",
+          "when": "editorTextFocus"
+        }
+      ],
+      "cryptoToolkit.menu.root": [
+        {
+          "submenu": "cryptoToolkit.menu.smart",
+          "group": "0_smart@1",
+          "when": "editorHasSelection"
+        },
+        {
+          "submenu": "cryptoToolkit.menu.encode",
+          "group": "1_encode@1",
+          "when": "editorHasSelection"
+        },
+        {
+          "submenu": "cryptoToolkit.menu.decode",
+          "group": "1_encode@2",
+          "when": "editorHasSelection"
+        },
+        {
+          "submenu": "cryptoToolkit.menu.hash",
+          "group": "2_crypto@1",
+          "when": "editorHasSelection"
+        },
+        {
+          "submenu": "cryptoToolkit.menu.hmac",
+          "group": "2_crypto@2",
+          "when": "editorHasSelection"
+        },
+        {
+          "submenu": "cryptoToolkit.menu.jwt",
+          "group": "3_tokens@1",
+          "when": "editorHasSelection"
+        },
+        {
+          "submenu": "cryptoToolkit.menu.aes",
+          "group": "4_symmetric@1",
+          "when": "editorHasSelection"
+        },
+        {
+          "submenu": "cryptoToolkit.menu.utility",
+          "group": "9_utility@1"
+        }
+      ],
+      "cryptoToolkit.menu.smart": [
+        {
+          "command": "cryptoToolkit.smart.detectAndDecode",
+          "group": "1_detect@1"
+        }
+      ],
+      "cryptoToolkit.menu.encode": [
+        {
+          "command": "cryptoToolkit.encode.base64",
+          "group": "1_encoding@1"
+        },
+        {
+          "command": "cryptoToolkit.encode.base64url",
+          "group": "1_encoding@2"
+        },
+        {
+          "command": "cryptoToolkit.encode.hex",
+          "group": "1_encoding@3"
+        },
+        {
+          "command": "cryptoToolkit.encode.url",
+          "group": "2_web@1"
+        },
+        {
+          "command": "cryptoToolkit.encode.html",
+          "group": "2_web@2"
+        }
+      ],
+      "cryptoToolkit.menu.decode": [
+        {
+          "command": "cryptoToolkit.decode.base64",
+          "group": "1_encoding@1"
+        },
+        {
+          "command": "cryptoToolkit.decode.base64url",
+          "group": "1_encoding@2"
+        },
+        {
+          "command": "cryptoToolkit.decode.hex",
+          "group": "1_encoding@3"
+        },
+        {
+          "command": "cryptoToolkit.decode.url",
+          "group": "2_web@1"
+        },
+        {
+          "command": "cryptoToolkit.decode.html",
+          "group": "2_web@2"
+        }
+      ],
+      "cryptoToolkit.menu.hash": [
+        {
+          "command": "cryptoToolkit.hash.md5",
+          "group": "1_hash@1"
+        },
+        {
+          "command": "cryptoToolkit.hash.sha1",
+          "group": "1_hash@2"
+        },
+        {
+          "command": "cryptoToolkit.hash.sha256",
+          "group": "2_sha2@1"
+        },
+        {
+          "command": "cryptoToolkit.hash.sha512",
+          "group": "2_sha2@2"
+        }
+      ],
+      "cryptoToolkit.menu.hmac": [
+        {
+          "command": "cryptoToolkit.hmac.sha256",
+          "group": "1_hmac@1"
+        },
+        {
+          "command": "cryptoToolkit.hmac.sha384",
+          "group": "1_hmac@2"
+        },
+        {
+          "command": "cryptoToolkit.hmac.sha512",
+          "group": "1_hmac@3"
+        }
+      ],
+      "cryptoToolkit.menu.jwt": [
+        {
+          "command": "cryptoToolkit.jwt.decode",
+          "group": "1_decode@1"
+        }
+      ],
+      "cryptoToolkit.menu.aes": [
+        {
+          "command": "cryptoToolkit.aes.cbcEncrypt",
+          "group": "1_cbc@1"
+        },
+        {
+          "command": "cryptoToolkit.aes.cbcDecrypt",
+          "group": "1_cbc@2"
+        },
+        {
+          "command": "cryptoToolkit.aes.gcmEncrypt",
+          "group": "2_gcm@1"
+        },
+        {
+          "command": "cryptoToolkit.aes.gcmDecrypt",
+          "group": "2_gcm@2"
+        }
+      ],
+      "cryptoToolkit.menu.utility": [
+        {
+          "command": "cryptoToolkit.utility.jsonPretty",
+          "group": "1_json@1",
+          "when": "editorHasSelection"
+        },
+        {
+          "command": "cryptoToolkit.utility.jsonMinify",
+          "group": "1_json@2",
+          "when": "editorHasSelection"
+        },
+        {
+          "command": "cryptoToolkit.utility.unixDecode",
+          "group": "2_time@1",
+          "when": "editorHasSelection"
+        },
+        {
+          "command": "cryptoToolkit.utility.unixEncode",
+          "group": "2_time@2"
+        },
+        {
+          "command": "cryptoToolkit.utility.uuidGenerate",
+          "group": "3_generate@1"
+        },
+        {
+          "command": "cryptoToolkit.utility.randomHex",
+          "group": "3_generate@2"
+        },
+        {
+          "command": "cryptoToolkit.utility.randomBase64",
+          "group": "3_generate@3"
+        },
+        {
+          "command": "cryptoToolkit.utility.sortLines",
+          "group": "4_lines@1",
+          "when": "editorHasSelection"
+        },
+        {
+          "command": "cryptoToolkit.utility.uniqueLines",
+          "group": "4_lines@2",
+          "when": "editorHasSelection"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "cryptoToolkit.smart.detectAndDecode",
+        "title": "Detect",
+        "category": "Crypto Toolkit: Smart"
+      },
+      {
+        "command": "cryptoToolkit.encode.base64",
+        "title": "Base64 Encode",
+        "category": "Crypto Toolkit: Encode"
+      },
+      {
+        "command": "cryptoToolkit.encode.base64url",
+        "title": "Base64URL Encode",
+        "category": "Crypto Toolkit: Encode"
+      },
+      {
+        "command": "cryptoToolkit.encode.hex",
+        "title": "Hex Encode",
+        "category": "Crypto Toolkit: Encode"
+      },
+      {
+        "command": "cryptoToolkit.encode.url",
+        "title": "URL Encode",
+        "category": "Crypto Toolkit: Encode"
+      },
+      {
+        "command": "cryptoToolkit.encode.html",
+        "title": "HTML Encode",
+        "category": "Crypto Toolkit: Encode"
+      },
+      {
+        "command": "cryptoToolkit.decode.base64",
+        "title": "Base64 Decode",
+        "category": "Crypto Toolkit: Decode"
+      },
+      {
+        "command": "cryptoToolkit.decode.base64url",
+        "title": "Base64URL Decode",
+        "category": "Crypto Toolkit: Decode"
+      },
+      {
+        "command": "cryptoToolkit.decode.hex",
+        "title": "Hex Decode",
+        "category": "Crypto Toolkit: Decode"
+      },
+      {
+        "command": "cryptoToolkit.decode.url",
+        "title": "URL Decode",
+        "category": "Crypto Toolkit: Decode"
+      },
+      {
+        "command": "cryptoToolkit.decode.html",
+        "title": "HTML Decode",
+        "category": "Crypto Toolkit: Decode"
+      },
+      {
+        "command": "cryptoToolkit.hash.md5",
+        "title": "MD5",
+        "category": "Crypto Toolkit: Hash"
+      },
+      {
+        "command": "cryptoToolkit.hash.sha1",
+        "title": "SHA1",
+        "category": "Crypto Toolkit: Hash"
+      },
+      {
+        "command": "cryptoToolkit.hash.sha256",
+        "title": "SHA256",
+        "category": "Crypto Toolkit: Hash"
+      },
+      {
+        "command": "cryptoToolkit.hash.sha512",
+        "title": "SHA512",
+        "category": "Crypto Toolkit: Hash"
+      },
+      {
+        "command": "cryptoToolkit.hmac.sha256",
+        "title": "HMAC-SHA256",
+        "category": "Crypto Toolkit: HMAC"
+      },
+      {
+        "command": "cryptoToolkit.hmac.sha384",
+        "title": "HMAC-SHA384",
+        "category": "Crypto Toolkit: HMAC"
+      },
+      {
+        "command": "cryptoToolkit.hmac.sha512",
+        "title": "HMAC-SHA512",
+        "category": "Crypto Toolkit: HMAC"
+      },
+      {
+        "command": "cryptoToolkit.jwt.decode",
+        "title": "Decode JWT",
+        "category": "Crypto Toolkit: JWT"
+      },
+      {
+        "command": "cryptoToolkit.aes.cbcEncrypt",
+        "title": "AES-CBC Encrypt",
+        "category": "Crypto Toolkit: AES"
+      },
+      {
+        "command": "cryptoToolkit.aes.cbcDecrypt",
+        "title": "AES-CBC Decrypt",
+        "category": "Crypto Toolkit: AES"
+      },
+      {
+        "command": "cryptoToolkit.aes.gcmEncrypt",
+        "title": "AES-GCM Encrypt",
+        "category": "Crypto Toolkit: AES"
+      },
+      {
+        "command": "cryptoToolkit.aes.gcmDecrypt",
+        "title": "AES-GCM Decrypt",
+        "category": "Crypto Toolkit: AES"
+      },
+      {
+        "command": "cryptoToolkit.utility.jsonPretty",
+        "title": "JSON Pretty",
+        "category": "Crypto Toolkit: Utility"
+      },
+      {
+        "command": "cryptoToolkit.utility.jsonMinify",
+        "title": "JSON Minify",
+        "category": "Crypto Toolkit: Utility"
+      },
+      {
+        "command": "cryptoToolkit.utility.unixDecode",
+        "title": "Unix Timestamp Decode",
+        "category": "Crypto Toolkit: Utility"
+      },
+      {
+        "command": "cryptoToolkit.utility.unixEncode",
+        "title": "Unix Timestamp Encode / Now",
+        "category": "Crypto Toolkit: Utility"
+      },
+      {
+        "command": "cryptoToolkit.utility.uuidGenerate",
+        "title": "Generate UUID",
+        "category": "Crypto Toolkit: Utility"
+      },
+      {
+        "command": "cryptoToolkit.utility.randomHex",
+        "title": "Generate Random Hex",
+        "category": "Crypto Toolkit: Utility"
+      },
+      {
+        "command": "cryptoToolkit.utility.randomBase64",
+        "title": "Generate Random Base64",
+        "category": "Crypto Toolkit: Utility"
+      },
+      {
+        "command": "cryptoToolkit.utility.sortLines",
+        "title": "Sort Lines",
+        "category": "Crypto Toolkit: Utility"
+      },
+      {
+        "command": "cryptoToolkit.utility.uniqueLines",
+        "title": "Unique Lines",
+        "category": "Crypto Toolkit: Utility"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "npx --yes @vscode/vsce package",
+    "publish": "npx --yes @vscode/vsce publish",
+    "lint": "tsc --noEGPL-3.0-or-later -p ./",
+    "test": "npm run test:unit",
+    "test:unit": "npm run compile && node --require ./test/unit/setup.js --test test/unit/*.test.js",
+    "check": "npm run lint && npm run test:unit",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "verify:marketplace": "npm run check && node scripts/verify-marketplace.js && npx --yes @vscode/vsce ls",
+    "package:marketplace": "npm run check && node scripts/verify-marketplace.js && npx --yes @vscode/vsce package --allow-missing-repository",
+    "publish:marketplace": "npm run check && node scripts/verify-marketplace.js && npx --yes @vscode/vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.6.3"
+  },
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#101827",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aleff-github/crypto-toolkit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aleff-github/crypto-toolkit/issues"
+  },
+  "homepage": "https://github.com/aleff-github/crypto-toolkit#readme",
+  "extensionKind": [
+    "workspace"
+  ]
+}

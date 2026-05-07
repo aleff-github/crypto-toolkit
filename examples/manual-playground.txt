@@ -1,0 +1,180 @@
+Crypto Toolkit v0.6.0 - Manual Playground
+==========================================
+
+How to use transform tests:
+1. Select only the text between <<< and >>>.
+2. Right click -> Crypto -> Category -> Action.
+3. Compare with the expected output.
+
+How to use generator tests:
+1. Place the cursor on an empty line.
+2. Right click -> Crypto -> Utility.
+3. Run Generate UUID / Generate Random Hex / Generate Random Base64 / Unix Timestamp Encode / Now.
+
+Recommended while testing:
+cryptoToolkit.outputMode = sidePanel or clipboard
+
+------------------------------------------------------------
+ENCODE / DECODE
+------------------------------------------------------------
+
+[Base64 Encode]
+Select:
+<<<hello world>>>
+Expected:
+aGVsbG8gd29ybGQ=
+
+[Base64 Decode]
+Select:
+<<<Q3J5cHRvIFRvb2xraXQgw6ggdXRpbGU=>>>
+Expected:
+Crypto Toolkit è utile
+
+[Base64URL Decode]
+Select:
+<<<Q3J5cHRvIFRvb2xraXQgw6ggdXRpbGU>>>
+Expected:
+Crypto Toolkit è utile
+
+[Hex Decode]
+Select:
+<<<48656c6c6f2c205653436f646521>>>
+Expected:
+Hello, VSCode!
+
+[URL Decode]
+Select:
+<<<hello%20world%3Fq%3Dcrypto%26lang%3Dit>>>
+Expected:
+hello world?q=crypto&lang=it
+
+[HTML Decode]
+Select:
+<<<&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;>>>
+Expected:
+<script>alert("x")</script>
+
+[Malformed Base64 - should show a clean error]
+Select:
+<<<not valid base64!!!>>>
+Expected:
+VS Code notification error, no crash.
+
+------------------------------------------------------------
+HASH / HMAC
+------------------------------------------------------------
+
+[SHA256]
+Select:
+<<<hello world>>>
+Expected:
+b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9
+
+[HMAC-SHA256]
+Select:
+<<<hello world>>>
+When prompted for secret, enter:
+secret
+Expected:
+734cc62f32841568f45715aeb9f4d7891324e6d948e4c6c60c0621cdac48623a
+
+------------------------------------------------------------
+JWT
+------------------------------------------------------------
+
+[Decode JWT]
+Select:
+<<<eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImRlbW8ta2V5LTEifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ik1hcmlvIFJvc3NpIiwiaWF0IjoxNzAwMDAwMDAwLCJuYmYiOjE3MDAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.GLL6o6C7DVRmGH-GcA5Ofv0ZZ7bTgnPr8H5qSLL7Dqc>>>
+Expected:
+JSON output containing header, payload, signature metadata, and no warnings.
+
+[Decode Authorization Bearer JWT]
+Select:
+<<<Authorization: Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhbm9ueW1vdXMiLCJleHAiOjF9.signature>>>
+Expected:
+JSON output plus warnings for alg=none and expired token.
+
+[Malformed JWT]
+Select:
+<<<abc.def>>>
+Expected:
+VS Code notification error, no crash.
+
+------------------------------------------------------------
+SMART DETECT
+------------------------------------------------------------
+
+[Smart Detect - Basic Auth]
+Select:
+<<<Authorization: Basic YWRtaW46cGFzc3dvcmQ=>>>
+Expected:
+Side panel: Looks like Basic Auth, username admin.
+
+[Smart Detect - Query String]
+Select:
+<<<client_id=test&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&state=abc123>>>
+Expected:
+Side panel: Looks like Query String.
+
+[Smart Detect - No strong match]
+Select:
+<<<hello plain text>>>
+Expected:
+Side panel: No strong match found, with closest signal only if useful.
+
+------------------------------------------------------------
+UTILITY GENERATORS WITHOUT SELECTION
+------------------------------------------------------------
+
+[Generate UUID]
+Place cursor on a new empty line, do not select text, then run:
+Crypto -> Utility -> Generate UUID
+Expected:
+A UUID inserted at the cursor when outputMode = replace.
+
+[Unix Timestamp Encode / Now]
+Place cursor on a new empty line, do not select text, then run:
+Crypto -> Utility -> Unix Timestamp Encode / Now
+Expected:
+JSON containing current ISO time, seconds, and milliseconds.
+
+[Generate Random Hex]
+Place cursor on a new empty line, do not select text, then run:
+Crypto -> Utility -> Generate Random Hex
+Expected:
+Prompt for byte length, then random hex inserted/copy/panel depending on outputMode.
+
+------------------------------------------------------------
+JSON / LINES
+------------------------------------------------------------
+
+[JSON Pretty]
+Select:
+<<<{"b":2,"a":1}>>>
+Expected:
+{
+  "b": 2,
+  "a": 1
+}
+
+[Sort Lines]
+Select:
+<<<banana
+apple
+orange>>>
+Expected:
+apple
+banana
+orange
+
+[Unique Lines]
+Select:
+<<<apple
+banana
+apple
+orange
+banana>>>
+Expected:
+apple
+banana
+orange

@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Base64 Decode",
+    "input": "Q3J5cHRvIFRvb2xraXQgw6ggdXRpbGU=",
+    "operation": "Crypto -> Decode -> Base64 Decode",
+    "expected": "Crypto Toolkit è utile"
+  },
+  {
+    "name": "JWT Decode",
+    "input": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImRlbW8ta2V5LTEifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ik1hcmlvIFJvc3NpIiwiaWF0IjoxNzAwMDAwMDAwLCJuYmYiOjE3MDAwMDAwMDAsImV4cCI6NDEwMjQ0NDgwMH0.GLL6o6C7DVRmGH-GcA5Ofv0ZZ7bTgnPr8H5qSLL7Dqc",
+    "operation": "Crypto -> JWT -> Decode JWT",
+    "expectedContains": ["header", "payload", "signature", "exp_iso"]
+  },
+  {
+    "name": "Generate UUID with no selection",
+    "input": "",
+    "operation": "Crypto -> Utility -> Generate UUID",
+    "expectedPattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+  }
+]
