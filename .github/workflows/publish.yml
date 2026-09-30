@@ -1,24 +1,200 @@
-name: Publish VS Code Extension
+name: Publish Crypto Toolkit
 
+# Manual publication only: no pushes, tags, or releases trigger this workflow.
 on:
   workflow_dispatch:
-  release:
-    types: [published]
+    inputs:
+      version:
+        description: 'Stable version to publish (for example 1.0.2)'
+        type: string
+        required: true
+        default: '1.0.2'
+      skip_openvsx:
+        description: 'Retry only: skip Open VSX if this exact version was published there'
+        type: boolean
+        required: true
+        default: false
+      skip_marketplace:
+        description: 'Retry only: skip Visual Studio Marketplace if this version was published there'
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: crypto-toolkit-extension-publish
+  cancel-in-progress: false
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Check out main and release tags
+        uses: actions/checkout@v4
         with:
-          node-version: 20
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
           cache: npm
-      - run: npm ci --omitr=optional
-      - run: npm run check
-      - run: node scripts/verify-marketplace.js
-      - run: npx --yes @vscode/vsce publish -p "$VSCE_PAT"
+
+      - name: Validate requested release
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          SKIP_OPENVSX: ${{ inputs.skip_openvsx }}
+          SKIP_MARKETPLACE: ${{ inputs.skip_marketplace }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != 'refs/heads/main' ]]; then
+            echo 'Only the main branch can be published.' >&2
+            exit 1
+          fi
+          if [[ "$SKIP_OPENVSX" == true && "$SKIP_MARKETPLACE" == true ]]; then
+            echo 'At least one marketplace must be enabled.' >&2
+            exit 1
+          fi
+          node <<'NODE'
+          const fs = require('node:fs');
+          const { execFileSync } = require('node:child_process');
+          const current = JSON.parse(fs.readFileSync('package.json', 'utf8')).version;
+          const requested = process.env.RELEASE_VERSION;
+          const stable = /^\d+\.\d+\.\d+$/;
+          if (!stable.test(requested) || !stable.test(current)) {
+            throw Error('Requested and current versions must be stable semantic versions (x.y.z).');
+          }
+          function compare(a, b) {
+            const left = a.split('.').map(Number);
+            const right = b.split('.').map(Number);
+            for (let i = 0; i < 3; i++) {
+              if (left[i] !== right[i]) return left[i] > right[i] ? 1 : -1;
+            }
+            return 0;
+          }
+          if (compare(requested, current) < 0) {
+            throw Error('The release version cannot be lower than package.json.');
+          }
+          if (compare(requested, current) > 0 &&
+              (process.env.SKIP_OPENVSX === 'true' || process.env.SKIP_MARKETPLACE === 'true')) {
+            throw Error('Skipping a registry is allowed only on a partial-publish retry.');
+          }
+          const tags = execFileSync('git', ['tag', '--list'], { encoding: 'utf8' })
+            .trim().split(/\s+/).filter(Boolean);
+          const releaseTags = tags
+            .map(t => /^v?(\d+\.\d+\.\d+)$/.exec(t)?.[1])
+            .filter(Boolean);
+          if (releaseTags.some(t => t === requested)) {
+            throw Error('The requested version already has a Git release tag.');
+          }
+          if (releaseTags.some(t => compare(requested, t) <= 0)) {
+            throw Error('Release version must exceed all existing stable release tags.');
+          }
+          console.log('Validated release ' + requested + ' (source version ' + current + ')');
+          NODE
+          echo "VSIX=crypto-toolkit-${RELEASE_VERSION}.vsix" >> "$GITHUB_ENV"
+
+      - name: Update manifest and lockfile version if required
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          CURRENT=$(node -p "require('./package.json').version")
+          if [[ "$CURRENT" != "$RELEASE_VERSION" ]]; then
+            npm version "$RELEASE_VERSION" --no-git-tag-version --ignore-scripts
+          fi
+
+      - name: Install dependencies and run project checks
+        run: |
+          set -euo pipefail
+          npm ci --omit=optional
+          npm run check
+          node scripts/verify-marketplace.js
+
+      - name: Install pinned publishing tools
+        run: npm install --global --no-audit --no-fund @vscode/vsce@4.0.0 ovsx@1.2.0
+
+      - name: Package once and verify the VSIX
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          vsce package --no-dependencies --out "$VSIX"
+          unzip -Z1 "$VSIX" > /tmp/crypto-vsix-files.txt
+          grep -Fxq 'extension/dist/extension.js' /tmp/crypto-vsix-files.txt
+          grep -Fxq 'extension/package.json' /tmp/crypto-vsix-files.txt
+          grep -Fxq 'extension/README.md' /tmp/crypto-vsix-files.txt
+          unzip -p "$VSIX" extension/package.json | node -e '
+            let input = "";
+            process.stdin.on("data", chunk => input += chunk).on("end", () => {
+              const pkg = JSON.parse(input);
+              if (pkg.version !== process.env.RELEASE_VERSION ||
+                  pkg.publisher.toLowerCase() !== "aleff" ||
+                  pkg.name !== "crypto-toolkit") {
+                console.error("Unexpected VSIX metadata");
+                process.exit(1);
+              }
+            });
+          '
+
+      - name: Retain VSIX even if marketplace publication fails
+        uses: actions/upload-artifact@v4
+        with:
+          name: Crypto-Toolkit-${{ inputs.version }}
+          path: ${{ env.VSIX }}
+          if-no-files-found: error
+
+      - name: Commit the release version to main
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(release): prepare v${RELEASE_VERSION}"
+            git push origin HEAD:main
+          fi
+
+      - name: Publish the VSIX to Open VSX
+        if: ${{ !inputs.skip_openvsx }}
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$OVSX_PAT" ]]; then
+            ovsx publish "$VSIX"
+          else
+            unset OVSX_PAT
+            ovsx publish "$VSIX" --trusted-publishing
+          fi
+
+      - name: Publish the same VSIX to Visual Studio Marketplace
+        if: ${{ !inputs.skip_marketplace }}
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$VSCE_PAT" ]]; then
+            vsce publish --packagePath "$VSIX"
+          else
+            unset VSCE_PAT
+            vsce publish --packagePath "$VSIX" --oidc
+          fi
+
+      - name: Create a GitHub release after successful publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          gh release create "v${RELEASE_VERSION}" "$VSIX" \
+            --target "$(git rev-parse HEAD)" \
+            --title "v${RELEASE_VERSION}" \
+            --generate-notes
