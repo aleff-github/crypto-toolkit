@@ -508,7 +508,7 @@
     "watch": "tsc -watch -p ./",
     "package": "npx --yes @vscode/vsce package",
     "publish": "npx --yes @vscode/vsce publish",
-    "lint": "tsc --noEGPL-3.0-or-later -p ./",
+    "lint": "tsc --noEmit -p ./",
     "test": "npm run test:unit",
     "test:unit": "npm run compile && node --require ./test/unit/setup.js --test test/unit/*.test.js",
     "check": "npm run lint && npm run test:unit",
